@@ -191,13 +191,13 @@ plot(
 text(down.onco.down.gene$logFC, -log2(down.onco.down.gene$PValue),#row.names(down.onco.down.gene),
      cex=1, pos=3,col="black") 
 #text(up5_gene$logFC, -log2(up5_gene$PValue),row.names(up5_gene),
-     cex=0.7, pos=3,col="black") 
+     #cex=0.7, pos=3,col="black") 
 #text(down5_gene$logFC, -log2(down5_gene$PValue),row.names(down5_gene),
-     cex=0.7, pos=3,col="black") 
+     #cex=0.7, pos=3,col="black") 
 #text(up_gene_onco$logFC, -log2(up_gene_onco$PValue),row.names(up_gene_onco),
-     cex=2, pos=3,col="black") 
+     #cex=2, pos=3,col="black") 
 #text(down_gene_onco$logFC, -log2(down_gene_onco$PValue),row.names(down_gene_onco),
-     cex=0.7, pos=3,col="black")
+     #cex=0.7, pos=3,col="black")
 
 ###########################################################
 ###gene ontology
