@@ -95,7 +95,7 @@ for p in $plID
 
 ######cat htseq QC data########
 
-			HTSEQ count origin
+			#HTSEQ count origin
 			echo $l > $wdir/${l}_nonfilter.txt
 			echo "No quality filter" >> $wdir/${l}_nonfilter.txt
 			grep "^__" \
@@ -107,7 +107,7 @@ for p in $plID
 
 
 #####cat HQ htseq QC data###########
-			MAPQ >=30
+			#MAPQ >=30
 			echo $l > $wdir/${l}_MAPQ30.txt
 			echo "Q30(MAPQ >= 30)" >> $wdir/${l}_MAPQ30.txt
 			grep "^__" \
