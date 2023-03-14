@@ -206,8 +206,8 @@ ${UMITOOLCMD}  dedup \
 
 ${SAMTOOLSCMD} view -@ ${CPU} \
 -F 524 -f 2 \
--u ${OUTPREFIXR1}_UMI_dedup.bam \
-| ${SAMTOOLSCMD} sort -@ ${CPU} -n -o ${OUTPREFIXR1}_UMI_filter.bam
+${OUTPREFIXR1}_UMI_dedup.bam \
+| ${SAMTOOLSCMD} sort -@ ${CPU} -u -o ${OUTPREFIXR1}_UMI_filter.bam
 echo $(date) samtools de-duplication COMPLETED
 
 
