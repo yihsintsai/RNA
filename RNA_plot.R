@@ -2,50 +2,67 @@ library(edgeR)
 library("RUVSeq")
 library(data.table)
 library(RColorBrewer)
-setwd("/mnt/nas/yh/10.RNA_seq_poly_A/R/1.counts/")
+library(dplyr)
+library("ggcorrplot")
+source("/mnt/nas2/yh/10.RNA_seq_poly_A/3.R/ercc_cor.R")
+setwd("/mnt/nas2/yh/10.RNA_seq_poly_A/8.count_ucsc/")
 
-#sample prepare
-
-sample_list <- data.frame(read.table("../../QC/sample_list.txt",col.names ="sampleId" ))
-gene_list <-read.table("gene_list",col.names=c("geneID"))
-
+sample_list <- data.frame(read.table("sample_list.txt",col.names ="sampleId" ))
+gene_list <-read.table("gene_id.list",col.names=c("geneID"))
+   extra_list<-c(10,11,12,16,28,32)
 data <- data.frame(gene_list)
+#for (f in 1:36){
 for (f in 1:nrow(sample_list)){
-  if (f < 10) {
-    f <- paste0("0",f)
-  }else{ 
-    f <- f
-  } 
-  
-  sample <- paste0("RQG11108A",f,sep = "")
-  sample_txt <- paste0(sample,"_R1.fq.gz_filter_count.txt",sep = "")
+  sample <- sample_list[f,]
+  sample_txt <- paste0(sample,"_R1.fq.gz.HQ_filter_count_for_r.txt",sep = "")
   table <- data.frame(read.table(sample_txt,col.names=c("geneID",sample)))%>%
-    select(2)
+    dplyr::select(2)
   data <- cbind(data,table) 
 }
 
-RNA.table <- data[1:39457,]
+row.names(data) <- data$geneID
+
+RNA.table <- data[,2:51]
+    
+    rna_wgs_replace_name <-  data.frame(read.table("/mnt/nas2/yh/10.RNA_seq_poly_A/SNP/rna_wga_samplename_op", header=FALSE))
+    rna.replace <- rna_wgs_replace_name[grepl("rna",rna_wgs_replace_name$V1),]
+    rna.replace <- sub("rna_", "", rna.replace)
+
+row.count <- data.frame(RNA.table)
+    colnames(row.count)<-rna.replace
+    row.count <- row.count[, order(colnames(row.count))]
+    row.count <- row.count[,c(30:50,1:29)]
 
 
-##Filter data 
+####Filter data #######################################################################
 #requiring > 5 reads in at least two samples for each gene
-filter <- apply(RNA.table, 1, function(x) length(x[x>5])>=2)
-filtered <- RNA.table[filter,]
+filter <- apply(row.count , 1, function(x) length(x[x>5])>=2)
+    filtered <- row.count[filter,]
 
 ##ERCC data prepare
-ERCC<- rownames(filtered)[grep("^ERCC-", rownames(filtered))]
-ERCC_counts <- filtered[row.names(filtered)%like%"^ERCC-",]
+ERCC <- rownames(filtered)[grep("^ERCC-", rownames(filtered))]
+    ERCC_count <- filtered[row.names(filtered)%like%"^ERCC-",]
+
+
+#ERCC_correlation 
+ERCC_con_table <- read.csv("/mnt/nas2/yh/10.RNA_seq_poly_A/reference/ERCC_ref/ERCC_control_table.csv") %>% 
+  dplyr::select(1:4) %>% 
+  `names<-`(c("RE-sort_ID","ERCC_ID","subgroup","Conc.Mix1"))
+
+
+condition <- as.factor(rep(c("SHORT","LONG","SHORT","LONG","SHORT","LONG"),c(19,17,1,6,1,6)))  #short/long
+    ERCC_correlation <- ercc_cor(ercc_control.table = ERCC_con_table,rna_table = RNA.table,condition = condition,corr_arg = "spearman")
 
 ##RNA sample data prepare 
-genes <- filtered[!row.names(filtered)%like%"^ERCC-",]
-
-##condition set
-condition <- as.factor(rep(c("SHORT","LONG"),c(19,17)))  #short/long
+genes <- filtered[!grepl("^ERCC-",row.names(filtered)),]
 
 ##datacondition set
 data <- newSeqExpressionSet(as.matrix(filtered),
-                           phenoData = data.frame(condition, row.names=colnames(filtered)))
+                            phenoData = data.frame(condition, row.names=colnames(filtered)))
 
+
+
+####plot non_nomorlization#######################################################################
 ##plot non_nomorlization
 colors <- brewer.pal(3, "Dark2")
 plotRLE(data, outline=FALSE, ylim=c(-4, 4), col=colors[condition])
@@ -53,26 +70,47 @@ plotPCA(data, col=colors[condition], cex=0.8)
 
 ##plot bwt_nomorlization
 bwt_data <- betweenLaneNormalization(data, which="upper")
-plotRLE(bwt_data, outline=FALSE, ylim=c(-4, 4), col=colors[condition])
-plotPCA(bwt_data, col=colors[condition], cex=0.8)
+    plotRLE(bwt_data, outline=FALSE, ylim=c(-4, 4), col=colors[condition])
+    plotPCA(bwt_data, col=colors[condition], cex=0.8)
 
 ##plot ERCC_nomorlization
-ercc_data <- RUVg(bwt_data, ERCC, k=1)
-plotRLE(ercc_data, outline=FALSE, ylim=c(-4, 4), col=colors[condition])
-plotPCA(ercc_data, col=colors[condition], cex=0.8)
+ercc_data <- RUVg(bwt_data, ERCC, k=3)
+    plotRLE(ercc_data, outline=F, ylim=c(-4, 4), col=colors[condition],
+        main = 'RNA-seq without unwant variation k=5')
+    plotPCA(ercc_data, col=colors[condition], cex=0.8,
+        main = 'RNA-seq without unwant variation k=5')
 
-#spike normalized count & condition compare result
-design <- model.matrix(~condition + W_1, data=pData(ercc_data))
-y <- DGEList(counts=counts(ercc_data), group=condition)
-y <- calcNormFactors(y, method="upperquartile")
-y <- estimateGLMCommonDisp(y, design)
-y <- estimateGLMTagwiseDisp(y, design)
-fit <- glmFit(y, design)
-lrt <- glmLRT(fit, coef=2)
-final_count.table <- data.frame(voom(y))
-write.csv(final_count.table,"../count.table.csv")
-result_data <- data.frame(lrt)
-write.csv(result_data,"../log2FC.csv")
+rna_count.data <- data.frame(ercc_data@assayData[["normalizedCounts"]])
+    summary(rna_count.data)
+
+
+
+####count cpm#######################################################################
+##count cpm
+#normalize with ERCC
+gene_length <- read.table("/mnt/nas2/yh/10.RNA_seq_poly_A/reference/htseq/ucsc/bed/chm13.draft_v2.0.gene_annotation.sorted.filtered.vfilter_ky_ercc.gene_length", header=F) %>%
+  `colnames<-`(c("name","gene.length"))
+gene_name<- data.frame(rownames(rna_count.data))%>%`colnames<-`(c("name"))
+gene_length.table <- merge(gene_name, gene_length, by="name")%>%
+  `colnames<-`(c("GeneID","Lengths"))
+#gene_length_info <- data.frame(GeneID = gene_ids, Length = gene_lengths)
+design <- model.matrix(~condition + W_1 + W_2 + W_3 ,  data = pData(ercc_data))
+    y <- DGEList(counts=counts(ercc_data), group=condition ,genes=gene_length.table)
+    y <- calcNormFactors(y, method="upperquartile")
+    y <- estimateGLMCommonDisp(y, design)
+    y <- estimateGLMTagwiseDisp(y, design)
+
+    normalize_cpm.table <- data.frame(cpm(y))
+    normalize_rpkm.table <- data.frame(rpkm(y))
+
+
+####filter XY_gene#######################################################################
+
+XYM_gene <- read.table("/mnt/nas2/yh/10.RNA_seq_poly_A/reference/htseq/ucsc/XYM_gene.list")
+
+normalize_cpm.table <- normalize_cpm.table[!(rownames(normalize_cpm.table) %in% XYM_gene$V1), ]
+
+
 ########################################################
 ## merge with oncogene
 OncogeneList <- read.csv("../OncogeneList.csv")
