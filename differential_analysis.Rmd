@@ -14,6 +14,11 @@ library("RColorBrewer")
 library("dplyr")
 library("ggcorrplot")
 library("DESeq2")
+library(devtools)
+library(ggvenn)
+library("pdist")
+library(enrichR)
+library("stringr")
 source("/mnt/nas2/yh/10.RNA_seq_poly_A/3.R/ercc_cor.R")
 setwd("/mnt/nas2/yh/10.RNA_seq_poly_A/8.count_ucsc/")
 
@@ -115,11 +120,6 @@ merge_table <- merge(Long_survival_nor_counts,res_data,by="gene_id")
 head(merge_table) 
 ```
 
-
-
-
-
-
 ```{r pvalue_histrogram}
 for (f in 1:3){
   ##condition extract
@@ -139,8 +139,6 @@ for (f in 1:3){
 #hist(L1v2_res$pvalue, breaks=100, col="grey" , main= "Histrogram of Long survival OP1 vs OP2" )
 ```
 
-
-
 ```{r merge gene location}
 
 gene_location <- read.csv("/mnt/nas2/elis/ref/chm13.draft_v2.0.gene_annotation.sorted.filtered.vfilter.csv")
@@ -149,37 +147,6 @@ gene_location <- read.csv("/mnt/nas2/elis/ref/chm13.draft_v2.0.gene_annotation.s
 
 write.csv(gene_location.table,"/mnt/nas2/yh/10.RNA_seq_poly_A/8.count_ucsc/Long_survival_DE_analysis_20240229.xlsx")
 ``` 
-```{r include=FALSE}
-#f1v2 <- as.data.frame(L1v2_res)
-#  df2v3 <- as.data.frame(L2v3_res)
-#  df1v3 <- as.data.frame(L1v3_res)
-  
-
-# df1v2$gene_id <- rownames(df1v2)
-#   df2v3$gene_id <- rownames(df2v3)
-#   df1v3$gene_id <- rownames(df1v3)
-#   L1v2_ds_nor_counts$gene_id <- rownames(L1v2_ds_nor_counts)
-#   
-# ref_table <- read.csv("/mnt/nas2/elis/ref/chm13.draft_v2.0.gene_annotation.sorted.filtered.vfilter.csv")
-# 
-# df1v2_table <- merge(ref_table, df1v2, by = "gene_id")
-#   loss_gene <- df1v2[! (rownames(df1v2)%in%ref_table$gene_id),]
-# 
-# df2v3_table <- merge(ref_table, df2v3, by = "gene_id")
-#   loss_gene <- df2v3[! (rownames(df2v3)%in%ref_table$gene_id),]
-# 
-# df1v3_table <- merge(ref_table, df1v3, by = "gene_id")
-#   loss_gene <- df1v3[! (rownames(df1v3)%in%ref_table$gene_id),]
-#   
-# L1v2_ds_nor_counts_table <- merge(ref_table, L1v2_ds_nor_counts, by = "gene_id")
-#   L1v2_ds_nor_counts_table <- merge(L1v2_ds_nor_counts_table, df1v2, by = "gene_id")
-#   L1v2_ds_nor_counts_table <- merge(L1v2_ds_nor_counts_table, df2v3, by = "gene_id")
-#   L1v2_ds_nor_counts_table <- merge(L1v2_ds_nor_counts_table, df1v3, by = "gene_id")
-#   write.csv(L1v2_ds_nor_counts_table,"/mnt/nas2/yh/10.RNA_seq_poly_A/8.count_ucsc/L1v2_ds_nor_counts_table20240206.xlsx")
-# data <- df1v3_table
-####
-```
-
 ```{r check loose gene}
 loss_gene <- merge_table[!merge_table$gene_id%in%gene_location.table$gene_id,]
   print(nrow(loss_gene))
@@ -236,8 +203,7 @@ summary(gene.list)
 ```
 
 ```{r , intersect,fig.width=9,fig.height=8}
-library(devtools)
-library(ggvenn)
+
 inters <-gene.list
 ##splite up and down from comparison
 myCol <- brewer.pal(12, "Paired")[c(1,5,3,7)]
@@ -259,6 +225,8 @@ ggvenn(
   stroke_size = 0.3, set_name_size = 4
 )
 ```
+
+
 ```{r cat union gene,fig.width=10,fig.height=10}
     
 col <- list(sample_id = c(OP1= "#02DF82", 
@@ -333,7 +301,6 @@ for (f in 1:length(clust_table)){
 
 ```{r group from clust tree}
 
-library("pdist")
 tree <- tree.table[["union.gene.sort"]]
   clust_tree <- data.frame(cutree(tree, k=4) ) %>% `colnames<-`(c("group"))
     clust_tree$gene_name <- rownames(clust_tree)
@@ -379,7 +346,6 @@ for (f in 1:4){
 
 ```{r plot mean figure,fig.width=9,fig.height=8 }
 
-
 for (f in 1:length(plot.list)){
   group <- plot.list[[f]]
   
@@ -410,7 +376,7 @@ for (f in 1:length(plot.list)){
 
 ```{r GO database}
 
-library(enrichR)
+
 db_library <- c("GO_Biological_Process_2023","GO_Cellular_Component_2023","GO_Molecular_Function_2023")
 
 websiteLive <- getOption("enrichR.live")
@@ -440,7 +406,7 @@ db_library <- c("GO_Biological_Process_2023","GO_Cellular_Component_2023","GO_Mo
 
 
 ```{r go plot,figure,fig.width=13,fig.height=10}
-library("stringr")    
+    
 gene_ref <- read.table("/mnt/nas2/yh/10.RNA_seq_poly_A/reference/go_reference/entrez_ID_722_genes.txt", header =T,sep="\t" )
 
 enrich.table <- list()
