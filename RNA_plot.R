@@ -206,8 +206,8 @@ fig <-pheatmap(corre.table ,
 short <- ggcorrplot(corre.table_short,lab = TRUE) +
   scale_fill_gradient2(low = "blue", high = "red",midpoint = 0.5, breaks=c(0.5, 1), limit=c(0.5, 1))+
   theme(
-    text = element_text(size = 12 , color = "black"),  # 调整字体大小和颜色
-    axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1),  # 调整 x 轴标签的角度和位置
+    text = element_text(size = 12 , color = "black"),  
+    axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1), 
     legend.position = c(1.03,0.94),
     legend.title = element_blank()
   )
@@ -217,8 +217,8 @@ plot(short)
 long <- ggcorrplot(corre.table_long, lab = TRUE) +
   scale_fill_gradient2(low = "blue", high = "red", midpoint = 0.76, breaks=c(0.75, 1), limit=c(0.75, 1))+
   theme(
-    text = element_text(size = 12 , color = "black"),  # 调整字体大小和颜色
-    axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1),  # 调整 x 轴标签的角度和位置
+    text = element_text(size = 12 , color = "black"),
+    axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1),
     legend.position = c(1.03,0.94),
     legend.title = element_blank()
   )
@@ -228,8 +228,8 @@ plot(long)
 all <- ggcorrplot(corre.table,lab = TRUE) +
   scale_fill_gradient2(low = "white", high = "red",midpoint = 0.76, breaks=c(0.75, 1), limit=c(0.75, 1))+
   theme(
-    text = element_text(size = 20 , color = "black"),  # 调整字体大小和颜色
-    axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1),  # 调整 x 轴标签的角度和位置
+    text = element_text(size = 20 , color = "black"), 
+    axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1), 
     legend.position = c(1.03,0.97),
     legend.title = element_blank()
   )
