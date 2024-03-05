@@ -404,9 +404,8 @@ db_library <- c("GO_Biological_Process_2023","GO_Cellular_Component_2023","GO_Mo
 
 ```
 
-
-```{r go plot,figure,fig.width=13,fig.height=10}
-    
+```{r go plot}
+library("stringr")    
 gene_ref <- read.table("/mnt/nas2/yh/10.RNA_seq_poly_A/reference/go_reference/entrez_ID_722_genes.txt", header =T,sep="\t" )
 
 enrich.table <- list()
@@ -419,43 +418,64 @@ for (i in 1:length(plot.list)){
     dbs <- db_library[f]
     enriched <- enrichr(gene_name$gene_name, dbs)
     table <- enriched[[1]]
-    go_table <- c(go_table,list(data=table))
-    names(go_table) <- gsub("data",dbs,names(go.table))
-    
-    table$mapped_gene <- gsub("/.*", "", table$Overlap)
-      table$all_gene <- gsub(".*/", "", table$Overlap)
-      table$ratio <- as.numeric(table$mapped_gene)/as.numeric(table$all_gene)
-      table <- table[order(table$P.value,decreasing = F),]
-      if ( as.numeric(nrow(table)) < 20 ){
-        plot_table <- table
-      } else {
-        plot_table <- table[c(1:20),]
-      }
+    go.table <- c(go.table,list(data=table))
+    names(go.table) <- gsub("data",dbs,names(go.table))
       
-      if ( dbs == "GO_Biological_Process_2023") {
-        fill_color  <- "#0080FF"
-      } else if ( dbs == "GO_Cellular_Component_2023") {
-        fill_color  <- "#02DF82"
-      } else {
-        fill_color  <- "#FF9224"
-      }
-    go_plot <- ggplot(plot_table, aes(x = -log(P.value) , y= Term , fill= Overlap )) + 
-                      geom_bar(stat="identity", width=0.5, fill = fill_color) +
-                      scale_y_discrete(name="",limits=c(rev(plot_table$Term)),labels = function(x) str_wrap(x, width = 90)) +
-                      scale_x_continuous(name = "-log(p-value)", 
-                                         limits = c(0,max(-log(plot_table$P.value))+5) , 
-                                         breaks = c(0:(max(-log(plot_table$P.value))+5)), minor_breaks = NULL) +
-                      labs(title = paste(names(clust.data)[i], dbs ,sep=" : ")) +
-                      geom_text(aes(label=Overlap), vjust=0.5, hjust=-0.1, size = 3)+
-                      theme(text = element_text(family = "Calibri"))+
-                      theme_bw()
-                      
-    plot(go_plot)
   }
-  enrich.table <- c(enrich.table,list(data=go_table))
+  enrich.table <- c(enrich.table,list(data=go.table))
      names(enrich.table) <- gsub("data",names(clust.data)[i],names(enrich.table))
   
 }
+```
+
+```{r go plot,figure,fig.width=20,fig.height=10}
+for (i in 1:length(enrich.table)){
+    group <- enrich.table[[i]]
+    go_plot <-data.frame ()
+  for (f in 1:length(group)) {
+    table <- data.frame(group[f])
+      colnames(table) <- c(gsub(".*_2023.","" , colnames(table)))
+      table$mapped_gene <- gsub("/.*", "", table$Overlap)
+      table$all_gene <- gsub(".*/", "", table$Overlap)
+      table$ratio <- as.numeric(table$mapped_gene)/as.numeric(table$all_gene)
+      table <- table[order(table$P.value,decreasing = F),]
+    if ( as.numeric(nrow(table)) < 15 ){
+            plot_table <- table
+          } else {
+            plot_table <- table[c(1:15),]
+          }
+    plot_table$type <- c(names(group)[f])
+    go_plot <-dplyr::bind_rows(go_plot, plot_table)
+    
+  }
+
+    
+    
+    jpeg(file = (paste( "/mnt/nas2/yh/",names(clust.data)[i],"_GO.jpg",sep="" )), width = 1500, height = 1000)
+
+       
+      
+      plot.fig <- ggplot(go_plot, aes(x = -log(P.value) , y = factor(Term , level=c(rev(Term))) , fill = type)) + 
+                    geom_bar(stat = "identity", width = 0.7 ) +
+                    scale_fill_manual(values=c("#02DF82", "#66B3FF","#FFA042"))+
+                    scale_y_discrete(name = "",labels = function(x) str_wrap(x, width = 100)) +
+                    scale_x_continuous(name = "-log(p-value)")+
+                                      #limits = c(0,max(-log(go_plot$P.value))+5) , 
+                                      #breaks = c(0:(max(-log(go_plot$P.value))+5)), minor_breaks = NULL) +
+                    labs(title = (names(clust.data)[i])) +
+                    geom_text(aes(label=Overlap), vjust=0.5, hjust=-0.1, size = 4 , fontface = "plain") +
+                    theme_bw() + 
+                    theme(axis.title = element_text(size=10,face = "plain"),
+                          axis.text = element_text(color = "black", size = 10, angle = 0, hjust = 0.1, vjust = 0.5, face = "plain"),
+                          panel.background = element_rect(),
+                          panel.grid.major = element_line())
+                     
+      plot(plot.fig)
+      dev.off()
+}
+    
+```
+
 
 
 
