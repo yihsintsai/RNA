@@ -22,15 +22,7 @@ library("stringr")
 source("/mnt/nas2/yh/10.RNA_seq_poly_A/3.R/ercc_cor.R")
 setwd("/mnt/nas2/yh/10.RNA_seq_poly_A/8.count_ucsc/")
 
-```
-
-## R Markdown
-
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r}
+## data prepare
 all_countData <- counts(ercc_data)
   long_count <- all_countData[,grep("L21|L23|L24|L26|L30|L31|L32|L35",colnames(all_countData))]
 all_colData <- pData(ercc_data)
@@ -38,54 +30,40 @@ all_colData <- pData(ercc_data)
     long_colData$condition <- c("OP1","OP2","OP1","OP2","OP1","OP2","OP3","OP1","OP2","OP3",
                             "OP1","OP2","OP3","OP1","OP2","OP1","OP2","OP1","OP2")
 
-```
 
-
-```{r}
 long_design <- model.matrix(~ W_1 + W_2 + W_3 + condition, data = long_colData)
 
   Long_survival_dds <- DESeqDataSetFromMatrix(countData = long_count ,
                                      colData = long_colData,
                                      design = ~ W_1 + W_2 + W_3 + condition )
-```
-
-## Including Plots
-
-You can also embed plots, for example:
-```{r filter gene}
+## filter the sum of rowcount < 10
 keep_gene <- rowSums(counts(Long_survival_dds)) >= 10
    Long_survival_dds <- Long_survival_dds[keep_gene,]
     Long_survival_dds$condition <- factor(Long_survival_dds$condition, levels = c("OP1","OP2","OP3"))
-```
 
-```{r calculate normalize count}
+## calculate normalize count
 Long_survival_dds <- estimateSizeFactors(Long_survival_dds)
   sizeFactors(Long_survival_dds)
   Long_survival_nor_counts <- data.frame(counts(Long_survival_dds, normalized=TRUE))
   Long_survival_nor_counts$gene_id <- rownames(Long_survival_nor_counts)
 
-```
 
-```{r different analysis}
+##cofficient of normalize 
+##deseq_cofe <-list(environment(L1v2_dds@dispersionFunction)[["fit"]][["coefficients"]])
 
-#cofficient of normalize 
-#deseq_cofe <-list(environment(L1v2_dds@dispersionFunction)[["fit"]][["coefficients"]])
 
+## DEG analysis
 Long_survival_ds <- DESeq(Long_survival_dds)
   head(Long_survival_ds)
 
-```
-```{r construct condition list}
+## construct condition list
 resultsNames(Long_survival_ds)
 Long_survival_res <- results(Long_survival_ds)
   condition.list <- data.frame("OP1vs.OP2"= c("OP1","OP2"),
-                                "OP1vs.OP3"= c("OP1","OP3"),
-                                "OP2vs.OP3"= c("OP2","OP3"))
+                               "OP1vs.OP3"= c("OP1","OP3"),
+                               "OP2vs.OP3"= c("OP2","OP3"))
 
-```
-
-
-```{r build result table}
+## result table 
 res_data <- data.frame(Long_survival_res@rownames) %>%
             `colnames<-`(c("gene_id"))
 
@@ -93,7 +71,7 @@ for (f in 1:3){
   ##condition extract
   comparison_1 <- condition.list[f][1,]
   comparison_2 <- condition.list[f][2,]
-  condition <- paste(comparison_1,"vs.",comparison_2,sep="")
+    condition <- paste(comparison_1,"vs.",comparison_2,sep="")
   
   ##differential analysis result
   res <- results(Long_survival_ds,
@@ -114,13 +92,10 @@ rownames(res_data) <- res_data$gene_id
 
 merge_table <- merge(Long_survival_nor_counts,res_data,by="gene_id") 
 
-  # L1v2_res <- results(L1v2_dds,alpha=0.05,contrast=c("condition","OP2","OP1"),independentFiltering = FALSE,cooksCutoff=FALSE)
-  # L2v3_res <- results(L1v2_dds,alpha=0.05,contrast=c("condition","OP3","OP2"),independentFiltering = FALSE,cooksCutoff=FALSE)
-  # L1v3_res <- results(L1v2_dds,alpha=0.05,contrast=c("condition","OP3","OP1"),independentFiltering = FALSE,cooksCutoff=FALSE)
 head(merge_table) 
-```
 
-```{r pvalue_histrogram}
+
+## pvalue_histrogram
 for (f in 1:3){
   ##condition extract
   comparison <- colnames(condition.list)[f]
@@ -134,25 +109,23 @@ for (f in 1:3){
   
 }
 
-#hist(L2v3_res$pvalue, breaks=100, col="grey" , main= "Histrogram of Long survival OP2 vs OP3" )
-#hist(L1v3_res$pvalue, breaks=100, col="grey" , main= "Histrogram of Long survival OP1 vs OP3" )
-#hist(L1v2_res$pvalue, breaks=100, col="grey" , main= "Histrogram of Long survival OP1 vs OP2" )
-```
 
-```{r merge gene location}
+## merge gene location
 
 gene_location <- read.csv("/mnt/nas2/elis/ref/chm13.draft_v2.0.gene_annotation.sorted.filtered.vfilter.csv")
   gene_location.table <- merge(gene_location,merge_table,by = "gene_id" )
   head(gene_location.table)
 
 write.csv(gene_location.table,"/mnt/nas2/yh/10.RNA_seq_poly_A/8.count_ucsc/Long_survival_DE_analysis_20240229.xlsx")
-``` 
-```{r check loose gene}
-loss_gene <- merge_table[!merge_table$gene_id%in%gene_location.table$gene_id,]
-  print(nrow(loss_gene))
-  head(loss_gene$gene_id)
-```
-```{r ,fig.width=10,fig.height=10}
+
+  ##check loose gene
+  loss_gene <- merge_table[!merge_table$gene_id%in%gene_location.table$gene_id,]
+    print(nrow(loss_gene))
+    head(loss_gene$gene_id)
+
+
+## vocano plot
+
 cut_off <- 0.01
 significant.table <- data.frame(row.names =c("Up-regulated (fdr <0.01 & lof2FC >0)",
                                              "Down-regulated (fdr <0.01 & lof2FC >0)",
@@ -160,6 +133,7 @@ significant.table <- data.frame(row.names =c("Up-regulated (fdr <0.01 & lof2FC >
 gene.list <- list()
 for (f in 1:3){
   comparison <- colnames(condition.list)[f]
+  
   data <- gene_location.table[,grepl(comparison,colnames(gene_location.table))]%>%`rownames<-`(gene_location.table$gene_id)
     colnames(data) <- gsub(paste(comparison,"_",sep=""),"",colnames(data))
     data$expressed <- "NO"
@@ -168,9 +142,9 @@ for (f in 1:3){
 
     significant_gene_up <- rownames(data[(data$expressed%in%"UP"),])
     significant_gene_down <- rownames(data[(data$expressed%in%"DOWN"),])
-      significant_gene <- list(gene_list_UP = c(significant_gene_up),gene_list_DOWN=c(significant_gene_down))
-        gene.list <- c(gene.list,significant_gene)
-        names(gene.list) <- gsub("gene_list", comparison, names(gene.list))
+    significant_gene <- list(gene_list_UP = c(significant_gene_up),gene_list_DOWN=c(significant_gene_down))
+    gene.list <- c(gene.list,significant_gene)
+    names(gene.list) <- gsub("gene_list", comparison, names(gene.list))
         
     count <- data.frame(c(NROW(grep("UP",data$expressed)),
                           NROW(grep("DOWN",data$expressed)),
@@ -179,41 +153,44 @@ for (f in 1:3){
                                          "Down-regulated (fdr <0.01 & lof2FC >0)",
                                          "No-regulated")) %>%
                           `colnames<-`(comparison)
+  
     significant.table <- cbind(significant.table,count) 
     
 
   vocano_fig <- ggplot(data = data, aes(x = log2FoldChange, y = (-log10(padj)) , col = expressed)) +
-    geom_vline(xintercept = c(0), col = "gray", linetype = 'dashed') +
-    geom_hline(yintercept = -log10(0.01), col = "gray", linetype = 'dashed') + 
-    geom_point() + 
-    theme_minimal() +
-    labs(x="Log2FoldChange", y="-Log10(padj)", title=paste("Long survival", comparison , sep =" ")) +
-    theme_set(theme_classic(base_size = 20) +
-    theme(
-      axis.title.y = element_text (face = "bold", margin = margin(0,20,0,0), size = rel(1.1), color = 'black'),
-      axis.title.x = element_text(hjust = 0.5, face = "bold", margin = margin(20,0,0,0), size = rel(1.1), color = 'black'),
-      plot.title = element_text(hjust = 0.5,face = "bold"))) +
-    scale_color_manual(values = c("blue","gray", "#bb0c00"), 
-                       labels = c("Down-regulated","No-regulation", "Up-regulated" ))
+                        geom_vline(xintercept = c(0), col = "gray", linetype = 'dashed') +
+                        geom_hline(yintercept = -log10(0.01), col = "gray", linetype = 'dashed') + 
+                        geom_point() + 
+                        theme_minimal() +
+                        labs(x="Log2FoldChange", y="-Log10(padj)", title=paste("Long survival", comparison , sep =" ")) +
+                        theme_set(theme_classic(base_size = 20) +
+                        theme(
+                              axis.title.y = element_text (face = "bold", margin = margin(0,20,0,0), size = rel(1.1), color = 'black'),
+                              axis.title.x = element_text(hjust = 0.5, face = "bold", margin = margin(20,0,0,0), size = rel(1.1), color = 'black'),
+                              plot.title = element_text(hjust = 0.5,face = "bold"))
+                                 ) +
+                        scale_color_manual(values = c("blue","gray", "#bb0c00"), 
+                                           labels = c("Down-regulated","No-regulation", "Up-regulated" ))
   plot(vocano_fig)
 
 }
 print(significant.table)
 summary(gene.list)
-```
 
-```{r , intersect,fig.width=9,fig.height=8}
+
+## gene of comparison intersect
 
 inters <-gene.list
-##splite up and down from comparison
 myCol <- brewer.pal(12, "Paired")[c(1,5,3,7)]
+
 
 ggvenn(
   inters, 
   fill_color = myCol ,
   stroke_size = 0.3, set_name_size = 4
 )
-##split comparison
+
+##split up&down
 inters <-c(
   OP1vs.OP2 = reshape2::melt(gene.list[grepl("OP1vs.OP2",names(gene.list))])[1],
   OP1vs.OP3 = reshape2::melt(gene.list[grepl("OP1vs.OP3",names(gene.list))])[1],
@@ -224,25 +201,22 @@ ggvenn(
   fill_color = myCol ,
   stroke_size = 0.3, set_name_size = 4
 )
-```
 
 
-```{r cat union gene,fig.width=10,fig.height=10}
+## cat union gene
     
 col <- list(sample_id = c(OP1= "#02DF82", 
                           OP2="#66B3FF",
                           OP3="#FFA042"))
-    
 clust_col <- colorRampPalette(c("blue","white","#FA394D"))(299)
 
-
 tree.table <- list()
-
 
 union.gene <- unique(reshape2::melt(inters)[1])
   write.csv(union.gene, "/mnt/nas2/yh/10.RNA_seq_poly_A/8.count_ucsc/union.gene.csv")
 union.gene.table <- Long_survival_nor_counts[Long_survival_nor_counts$gene_id%in%union.gene$value,]
   rownames(union.gene.table) <- union.gene.table$gene_id
+
 clust_table<-c("union.gene.sort.table","union.gene.unsort.table ")
 for (f in 1:length(clust_table)){
   type <- clust_table[f]
@@ -296,10 +270,7 @@ for (f in 1:length(clust_table)){
 #names <- rownames(geneExp_matrix)
 
 
-```
-
-
-```{r group from clust tree}
+## group from clust tree
 
 tree <- tree.table[["union.gene.sort"]]
   clust_tree <- data.frame(cutree(tree, k=4) ) %>% `colnames<-`(c("group"))
@@ -341,10 +312,7 @@ for (f in 1:4){
 }
 
 
-```
-
-
-```{r plot mean figure,fig.width=9,fig.height=8 }
+## plot mean figure
 
 for (f in 1:length(plot.list)){
   group <- plot.list[[f]]
@@ -370,11 +338,7 @@ for (f in 1:length(plot.list)){
  plot(mean_fig) 
 }
 
-
-```
-
-
-```{r GO database}
+## GO database
 
 
 db_library <- c("GO_Biological_Process_2023","GO_Cellular_Component_2023","GO_Molecular_Function_2023")
@@ -391,20 +355,7 @@ db_library <- c("GO_Biological_Process_2023","GO_Cellular_Component_2023","GO_Mo
 
 
   
-  #   go_en<- plotEnrich(enriched[[1]], showTerms = 20, numChar = 40, y = "counts", orderBy = "P.value", title = "GO_MF_cluster_1")
-  #   plot(a)
-  # }
-
-
-
-
-
-
-
-
-```
-
-```{r go plot}
+## GO plot
 library("stringr")    
 gene_ref <- read.table("/mnt/nas2/yh/10.RNA_seq_poly_A/reference/go_reference/entrez_ID_722_genes.txt", header =T,sep="\t" )
 
@@ -426,9 +377,7 @@ for (i in 1:length(plot.list)){
      names(enrich.table) <- gsub("data",names(clust.data)[i],names(enrich.table))
   
 }
-```
 
-```{r go plot,figure,fig.width=20,fig.height=10}
 for (i in 1:length(enrich.table)){
     group <- enrich.table[[i]]
     go_plot <-data.frame ()
@@ -474,14 +423,4 @@ for (i in 1:length(enrich.table)){
       dev.off()
 }
     
-```
 
-
-
-
-
-
-```
-
-
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
