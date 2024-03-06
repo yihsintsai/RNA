@@ -1,12 +1,9 @@
----
+
 title: "differential analysis for long survival"
 author: "yh"
 date: "2024-02-27"
 output: html_document
----
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
 library("edgeR")
 library("RUVSeq")
 library("data.table")
